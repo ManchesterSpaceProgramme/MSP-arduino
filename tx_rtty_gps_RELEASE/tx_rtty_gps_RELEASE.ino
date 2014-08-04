@@ -13,16 +13,22 @@ http://ukhas.org.uk
  
 #include <string.h>
 #include <util/crc16.h>
+#include <SoftwareSerial.h>
  
 char datastring[80];
-
+char gps_string[80];
+SoftwareSerial gps(3,4);
+ 
 void setup() {
  pinMode(RADIOPIN,OUTPUT);
- setPwmFrequency(RADIOPIN, 1); 
+ setPwmFrequency(RADIOPIN, 1);
+ Serial.begin(9600); // be sure to check lower right corner info in an open 'serial windows'
+ gps.begin(9600);  // may be 4800, 19200,38400 or 57600
+ itoa (gps.read(), gps_string, 10);
 }
  
 void loop() {
- snprintf(datastring,80,"WOW, MUCH CONFUSE, VERY SPACEY, HELLO BRAINCOX"); // Puts the text in the datastring
+ snprintf(datastring,80,gps_string); // Puts the text in the datastring
  unsigned int CHECKSUM = gps_CRC16_checksum(datastring); // Calculates the checksum for this datastring
  char checksum_str[6];
  sprintf(checksum_str, "*%04X\n", CHECKSUM);
