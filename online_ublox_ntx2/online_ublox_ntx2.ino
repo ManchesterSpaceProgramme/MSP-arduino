@@ -1,8 +1,5 @@
 /*
- 
   Transmits data via NTX2
-  
-   
 */
 #include <string.h>
 #include <util/crc16.h>
@@ -54,7 +51,7 @@ void setup()
     sendUBX(setNav, sizeof(setNav)/sizeof(uint8_t));
     gps_set_sucess=getUBX_ACK(setNav);
   }
-  gps_set_sucess=0;
+  gps_set_sucess=0; 
 }
  
   
@@ -66,13 +63,10 @@ unsigned long startTime = millis();
 sendUBX(getNAV5, sizeof(getNAV5)/sizeof(uint8_t));
   
  while (1) {
-    
     if (GPS.available()) {
     Serial.write(GPS.read()); 
     }  
-  
-
- }
+ } 
 }
 
  
@@ -82,14 +76,7 @@ int year;
   int n;
   byte month, day, hour, minute, second, hundredths;
   unsigned long age;
-  Serial.println("In loop");
-  
-  rtty_txstring(DATASTRING);
-  sprintf (DATASTRING, "$$SJohn,%02d:%02d:%02d,%s,%s,%ld\n", hour, minute, second, latbuf, lonbuf, ialt);
-  Serial.println(DATASTRING);
- 
-    Serial.println("GPS availabe and ready to be read");
-
+    
 gps.f_get_position(&flat, &flon, &age);
 gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &age);
 
@@ -106,7 +93,6 @@ gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &a
       dtostrf(flat, 7, 4, latbuf);
       dtostrf(flon, 7, 4, lonbuf);
       
-     Serial.println(latbuf);
       //just check that we are putting a space at the front of lonbuf
       if(lonbuf[0] == ' ')
       {
@@ -116,8 +102,9 @@ gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &a
       // +/- altitude in meters
       ialt = (gps.f_altitude() / 100);   
       itoa(ialt, altbuf, 10);
-      Serial.println("Got altitude");
-
+     
+  sprintf (DATASTRING, "$$SJohn,%02d:%02d:%02d,%s,%s,%ld\n", hour, minute, second, latbuf, lonbuf, ialt); 
+      rtty_txstring(DATASTRING);
 }
 
 
@@ -131,7 +118,7 @@ void sendUBX(uint8_t *MSG, uint8_t len) {
   GPS.println();
 }
  
- 
+
 // Calculate expected UBX ACK packet and parse UBX response from GPS
 boolean getUBX_ACK(uint8_t *MSG) {
   uint8_t b;
@@ -247,14 +234,14 @@ void rtty_txbit (int bit)
         if (bit)
         {
           // high
-                    digitalWrite(RADIO_MARK_PIN, HIGH);
+                    analogWrite(RADIO_MARK_PIN, 110);
                     
         }
         else
         {
           // low
                     
-                    digitalWrite(RADIO_MARK_PIN, LOW);
+                    analogWrite(RADIO_MARK_PIN, 100);
  
         }
 //                delayMicroseconds(1680); // 600 baud unlikely to work.
