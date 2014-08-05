@@ -76,7 +76,6 @@ c = c >> 1;
 }
  
 rtty_txbit (1); // Stop bit
- rtty_txbit (1); // Stop bit
 }
  
 void rtty_txbit (int bit)

@@ -4,8 +4,6 @@
   
    
 */
- 
-
 #include <string.h>
 #include <util/crc16.h>
 int RADIO_MARK_PIN=9;
@@ -30,9 +28,8 @@ long int ialt = 123;
 void setup()
 {
  pinMode(RADIO_MARK_PIN,OUTPUT);
- Serial.begin(9600);
+ setPwmFrequency(RADIO_MARK_PIN, 1);
 
- 
   GPS.begin(9600); 
   // START OUR SERIAL DEBUG PORT
   Serial.begin(9600);
@@ -58,51 +55,9 @@ void setup()
     gps_set_sucess=getUBX_ACK(setNav);
   }
   gps_set_sucess=0;
-  
-  
-  
 }
  
-  // THE FOLLOWING COMMANDS DO WHAT THE $PUBX ONES DO BUT WITH CONFIRMATION
-  // UNCOMMENT AS NEEDED
-  /*
-  Serial.println("Switching off NMEA GLL: ");
-   uint8_t setGLL[] = { 
-   0xB5, 0x62, 0x06, 0x01, 0x08, 0x00, 0xF0, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x2B                   };
-   while(!gps_set_sucess)
-   {		
-   sendUBX(setGLL, sizeof(setGLL)/sizeof(uint8_t));
-   gps_set_sucess=getUBX_ACK(setGLL);
-   }
-   gps_set_sucess=0;
-   Serial.println("Switching off NMEA GSA: ");
-   uint8_t setGSA[] = { 
-   0xB5, 0x62, 0x06, 0x01, 0x08, 0x00, 0xF0, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x32                   };
-   while(!gps_set_sucess)
-   {	
-   sendUBX(setGSA, sizeof(setGSA)/sizeof(uint8_t));
-   gps_set_sucess=getUBX_ACK(setGSA);
-   }
-   gps_set_sucess=0;
-   Serial.println("Switching off NMEA GSV: ");
-   uint8_t setGSV[] = { 
-   0xB5, 0x62, 0x06, 0x01, 0x08, 0x00, 0xF0, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x03, 0x39                   };
-   while(!gps_set_sucess)
-   {
-   sendUBX(setGSV, sizeof(setGSV)/sizeof(uint8_t));
-   gps_set_sucess=getUBX_ACK(setGSV);
-   }
-   gps_set_sucess=0;
-   Serial.print("Switching off NMEA RMC: ");
-   uint8_t setRMC[] = { 
-   0xB5, 0x62, 0x06, 0x01, 0x08, 0x00, 0xF0, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x04, 0x40                   };
-   while(!gps_set_sucess)
-   {
-   sendUBX(setRMC, sizeof(setRMC)/sizeof(uint8_t));
-   gps_set_sucess=getUBX_ACK(setRMC);
-   }
-   */
- 
+  
 boolean checkNAV(){
 uint8_t b, bytePos = 0;
 uint8_t getNAV5[] = { 0xB5, 0x62, 0x06, 0x24, 0x00, 0x00, 0x2A, 0x84 };
@@ -127,15 +82,13 @@ int year;
   int n;
   byte month, day, hour, minute, second, hundredths;
   unsigned long age;
-  
+  Serial.println("In loop");
   
   rtty_txstring(DATASTRING);
   sprintf (DATASTRING, "$$SJohn,%02d:%02d:%02d,%s,%s,%ld\n", hour, minute, second, latbuf, lonbuf, ialt);
-
- while (GPS.available())
-  {
-    if (gps.encode(GPS.read()))
-
+  Serial.println(DATASTRING);
+ 
+    Serial.println("GPS availabe and ready to be read");
 
 gps.f_get_position(&flat, &flon, &age);
 gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &age);
@@ -148,12 +101,12 @@ gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &a
       
       //Get Position
       gps.f_get_position(&flat, &flon);
-     
   
       //convert float to string
       dtostrf(flat, 7, 4, latbuf);
       dtostrf(flon, 7, 4, lonbuf);
       
+     Serial.println(latbuf);
       //just check that we are putting a space at the front of lonbuf
       if(lonbuf[0] == ' ')
       {
@@ -163,7 +116,8 @@ gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &a
       // +/- altitude in meters
       ialt = (gps.f_altitude() / 100);   
       itoa(ialt, altbuf, 10);
-}
+      Serial.println("Got altitude");
+
 }
 
 
@@ -309,11 +263,7 @@ void rtty_txbit (int bit)
                 delayMicroseconds(10150); // For some reason you can't do 20150 it just doesn't work.
  
 }
- 
-void callback()
-{
- 
-}
+
 uint16_t gps_CRC16_checksum (char *string)
 {
     size_t i;
@@ -330,4 +280,63 @@ uint16_t gps_CRC16_checksum (char *string)
     }
  
     return crc;
+}
+
+void setPwmFrequency(int pin, int divisor) {
+ byte mode;
+ if(pin == 5 || pin == 6 || pin == 9 || pin == 10) {
+ switch(divisor) {
+ case 1:
+ mode = 0x01;
+ break;
+ case 8:
+ mode = 0x02;
+ break;
+ case 64:
+ mode = 0x03;
+ break;
+ case 256:
+ mode = 0x04;
+ break;
+ case 1024:
+ mode = 0x05;
+ break;
+ default:
+ return;
+ }
+ if(pin == 5 || pin == 6) {
+ TCCR0B = TCCR0B & 0b11111000 | mode;
+ }
+ else {
+ TCCR1B = TCCR1B & 0b11111000 | mode;
+ }
+ }
+ else if(pin == 3 || pin == 11) {
+ switch(divisor) {
+ case 1:
+ mode = 0x01;
+ break;
+ case 8:
+ mode = 0x02;
+ break;
+ case 32:
+ mode = 0x03;
+ break;
+ case 64:
+ mode = 0x04;
+ break;
+ case 128:
+ mode = 0x05;
+ break;
+ case 256:
+ mode = 0x06;
+ break;
+ case 1024:
+ mode = 0x7;
+ break;
+ default:
+ return;
+ }
+ TCCR2B = TCCR2B & 0b11111000 | mode;
+ }
 }
