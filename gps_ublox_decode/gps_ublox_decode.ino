@@ -1,7 +1,7 @@
 #include <SoftwareSerial.h>
 #include <TinyGPS.h>
 
-SoftwareSerial mySerial(10, 11); // TX, RX
+SoftwareSerial mySerial(11, 10); // RX, TX
 TinyGPS gps;
 
 void gpsdump(TinyGPS &gps);
@@ -37,7 +37,7 @@ void loop() // run over and over
       // Serial.print(c);  // uncomment to see raw GPS data
       if (gps.encode(c)) {
         newdata = true;
-        // break;  // uncomment to print new data immediately!
+         break;  // uncomment to print new data immediately!
       }
     }
   }
@@ -49,7 +49,7 @@ void loop() // run over and over
     Serial.println("-------------");
     Serial.println();
   } else {
-    Serial.println("No new data");
+    //Serial.println("No new data");
   }
   
 }
@@ -135,3 +135,4 @@ void printFloat(double number, int digits)
     remainder -= toPrint;
   }
 }
+

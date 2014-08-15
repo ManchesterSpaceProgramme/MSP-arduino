@@ -176,3 +176,4 @@ void setPwmFrequency(int pin, int divisor) {
  TCCR2B = TCCR2B & 0b11111000 | mode;
  }
 }
+

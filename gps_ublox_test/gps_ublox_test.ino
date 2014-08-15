@@ -1,6 +1,6 @@
 #include <SoftwareSerial.h>
 
-SoftwareSerial gps(10,11); // TX, RX
+SoftwareSerial gps(11,10); // RX, TX
 void setup()
 {
   Serial.begin(9600); // be sure to check lower right corner info in an open 'serial windows'
