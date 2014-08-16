@@ -13,8 +13,9 @@
 #include "rtty.h"
 #include "gps.h"
 
-#define GPSTX 11
-#define GPSRX 10
+#define ENABLE_RADIO 8
+#define GPSTX 10
+#define GPSRX 11
 #define NTX2 9
 //Character buffer for transmission
 #define DATASIZE 256
@@ -35,6 +36,8 @@ void setup() {
   //Initialise GPS
   gps.start();
   setPwmFrequency(NTX2, 1);
+  pinMode(ENABLE_RADIO, OUTPUT);
+  digitalWrite(ENABLE_RADIO, HIGH);
   Serial.println(F("GPS and SD initialised"));  
 }
 

@@ -10,6 +10,7 @@ http://ukhas.org.uk
  */
  
 #define RADIOPIN 9
+#define ENABLE_RADIO 8
  
 #include <string.h>
 #include <util/crc16.h>
@@ -19,6 +20,8 @@ char datastring[80];
 void setup() {
  pinMode(RADIOPIN,OUTPUT);
  setPwmFrequency(RADIOPIN, 1); 
+ pinMode(ENABLE_RADIO, OUTPUT);
+ digitalWrite(ENABLE_RADIO, HIGH);
 }
  
 void loop() {
