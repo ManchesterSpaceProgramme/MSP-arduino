@@ -9,6 +9,7 @@
 #include <SoftwareSerial.h>
 //This is a modifed version of the TinyGPS libaray for UBlox GPS chips
 #include <TinyGPS_UBX.h>
+#include <Wire.h>
 //Include our separate code for ease of reading
 #include "rtty.h"
 #include "gps.h"
@@ -36,6 +37,7 @@ GPS gps(GPSRX, GPSTX);
 //*************************************************************************************
 
 void setup() {
+  Serial.begin(9600);
   //Initialise GPS
   gps.start();
   setPwmFrequency(NTX2, 1);
@@ -43,7 +45,8 @@ void setup() {
   pinMode(CAMERA, OUTPUT);
   pinMode(VOLTAGE, INPUT);
   digitalWrite(ENABLE_RADIO, HIGH);
-  Serial.println(F("GPS initialised"));  
+  Serial.println(F("GPS initialised"));
+  
 }
 
 //*************************************************************************************
@@ -54,7 +57,9 @@ void setup() {
 
 void loop() {
   //Call gps.get_info and, along with the s_id and battery, put it altogether into the string called 'data'
-  snprintf(data, DATASIZE, "$$DOGE1,%d,%s", s_id, gps.get_info(), getVoltage());
+  int V=getVoltage();
+    
+  snprintf(data, DATASIZE, "$$DOGE2,%d,GPS=[%s],V=%d.%d", s_id, gps.get_info(), V/100, V%100);
   //print this to the screen and the ram
   //Serial.println(data);
 
@@ -63,9 +68,11 @@ void loop() {
   s_id++;
   //delay(500);
   
-  digitalWrite(CAMERA, HIGH);
-  delay(20000);
-  digitalWrite(CAMERA, LOW);
+  Serial.println(data);
+  
+  //digitalWrite(CAMERA, HIGH);
+  //delay(20000);
+  //digitalWrite(CAMERA, LOW);
 }
 
 //*************************************************************************************
@@ -140,10 +147,20 @@ void setPwmFrequency(int pin, int divisor) {
  }
  TCCR2B = TCCR2B & 0b11111000 | mode;
  }
- 
- float getVoltage(){
-   float voltage;
+  
+}
+
+int getVoltage(){
+  float fvoltage;
+  int voltage;
   //Obtain RAW voltage data
   voltage = analogRead(VOLTAGE);
- }  
-}
+  // calculate actual battery
+  
+  fvoltage = voltage/1024.0;
+  fvoltage*= 10.0;
+  
+  voltage = fvoltage*100;
+  
+  return (voltage);
+} 
