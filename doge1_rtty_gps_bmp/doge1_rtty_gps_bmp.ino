@@ -9,12 +9,23 @@
 #include <SoftwareSerial.h>
 //This is a modifed version of the TinyGPS libaray for UBlox GPS chips
 #include <TinyGPS_UBX.h>
+
+#include <SFE_BMP180.h>
+#include <Wire.h>
+
+// You will need to create an SFE_BMP180 object, here called "pressure":
+
+SFE_BMP180 pressure;
+
+#define ALTITUDE 0.0 // Altitude of SparkFun's HQ in Boulder, CO. in meters
+
 //Include our separate code for ease of reading
 #include "rtty.h"
 #include "gps.h"
 
-#define GPSTX 11
-#define GPSRX 10
+#define ENABLE_RADIO 8
+#define GPSTX 10
+#define GPSRX 11
 #define NTX2 9
 //Character buffer for transmission
 #define DATASIZE 256
@@ -25,17 +36,6 @@ uint16_t s_id = 0;
 RTTY rtty(NTX2);
 GPS gps(GPSRX, GPSTX);
 
-//BMP180 stuff
-#include <SFE_BMP180.h>
-#include <Wire.h>
-
-// You will need to create an SFE_BMP180 object, here called "pressure":
-
-SFE_BMP180 pressure;
-
-#define ALTITUDE 0.0 // Altitude of SparkFun's HQ in Boulder, CO. in meters
-
-
 //*************************************************************************************
 //
 //setup()
@@ -43,15 +43,19 @@ SFE_BMP180 pressure;
 //*************************************************************************************
 
 void setup() {
+  Serial.begin(9600);
   //Initialise GPS
   gps.start();
-  //Initialise BMP
-  pressure.begin();
-  
-  pressure.startPressure(3);
-  pressure.startTemperature();
   setPwmFrequency(NTX2, 1);
-  Serial.println(F("GPS and SD initialised"));  
+  pinMode(ENABLE_RADIO, OUTPUT);
+  digitalWrite(ENABLE_RADIO, HIGH);
+  Serial.println(F("GPS and Radio initialised"));  
+  if (pressure.begin())
+    Serial.println("BMP180 init success");
+  else
+  { Serial.println("BMP180 init fail\n\n");
+    while(1); // Pause forever.
+  }
 }
 
 //*************************************************************************************
@@ -61,17 +65,10 @@ void setup() {
 //*************************************************************************************
 
 void loop() {
-  
-  char status;
-  double T,P,p0,a;
-  
-  pressure.getTemperature(T);
-  
-  pressure.altitude(P,p0);
-  //Call gps.get_info and, along with the s_id and battery, put it altogether into the string called 'data'
-  snprintf(data, DATASIZE, "$$DOGE1,%d,%s,%d", s_id, gps.get_info(), T);
+  //Call gps.get_info and, along with the s_id, put it altogether into the string called 'data'
+  snprintf(data, DATASIZE, "$$DOGE1,%d,%s,%s", s_id, gps.get_info(), getBMP());
   //print this to the screen and the ram
-  Serial.println(data);
+  //Serial.println(data);
   //Serial.println(freeRam());
 
   rtty.send(data);
@@ -154,3 +151,59 @@ void setPwmFrequency(int pin, int divisor) {
  TCCR2B = TCCR2B & 0b11111000 | mode;
  }
 }
+ 
+char *getBMP(){
+   char status;
+   double T,P,p0,a;
+   static char bmpReturn[13  ];
+   char temp[4];
+   char absPressure[4];
+   char bmpAltitude[5];
+   
+   status = pressure.startTemperature();
+  if (status != 0)
+  {
+    // Wait for the measurement to complete:
+    delay(status);
+    status = pressure.getTemperature(T);
+    if (status != 0)
+    {
+      //convert float to string
+      dtostrf(T, 0, 0, bmpReturn);
+      
+      status = pressure.startPressure(3);
+      if (status != 0)
+      {
+        // Wait for the measurement to complete:
+        delay(status);
+        status = pressure.getPressure(P,T);
+        if (status != 0)
+        {
+          strncat(bmpReturn, ",", 1);
+          // Print out the measurement:
+          dtostrf(P, 0, 0, absPressure);
+          strncat(bmpReturn, absPressure, 4);  
+          //Serial.print("absolute pressure: ");
+          //Serial.print(P,2);
+          
+          p0 = pressure.sealevel(P,ALTITUDE);
+          //Serial.print("relative (sea-level) pressure: ");
+          //Serial.print(p0,2);
+          
+          a = pressure.altitude(P,1011);
+                    
+          strncat(bmpReturn, ",", 1);
+          dtostrf(a, 0, 0, bmpAltitude);
+          strncat(bmpReturn, bmpAltitude, 5); 
+          //Serial.print("computed altitude: ");
+          //Serial.print(a,0);
+          //Serial.println(" meters, ");
+          
+        }
+        
+      }
+  }
+ }
+ Serial.println(bmpReturn);
+      return bmpReturn;
+ }
