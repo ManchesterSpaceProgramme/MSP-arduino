@@ -1,19 +1,20 @@
-//Title:    STRATODEAN Tracker code
-//Author:   Mark Ireland
-//Website:  http://www.stratodean.co.uk
-//Notes:    Thanks goes to all the existing UKHAS enthusiasts who helped with providing example code for others to use.
-//          Thanks also to the guys on the UKHAS #highaltitude irc channel for their invaluable help.
+//-----------------------------------------------------------------------------------------------------------------------
+// Manchester Space Program Mission 1 [DOGE1] Payload firmware
+// Authors:   Harvinder Atwal, Pete Blacker
+// Website:   http://www.manchesterspaceprogramme.org/
+// Notes:     Thanks goes to all the existing UKHAS enthusiasts who helped with providing example code for others to use.
+//            Thanks also to the guys on the UKHAS #highaltitude irc channel for their invaluable help.
+//-----------------------------------------------------------------------------------------------------------------------
 
-//Github test
-//We need SoftwareSerial port as we are using the hardware port for GPS
 #include <SoftwareSerial.h>
-//This is a modifed version of the TinyGPS libaray for UBlox GPS chips
 #include <TinyGPS_UBX.h>
+#include <SFE_BMP180.h>
 #include <Wire.h>
-//Include our separate code for ease of reading
+
 #include "rtty.h"
 #include "gps.h"
 
+// set pin assignments 
 #define ENABLE_RADIO 8
 #define GPSTX 4
 #define GPSRX 3
@@ -21,14 +22,28 @@
 #define CAMERA 2
 #define VOLTAGE 17
 
-//Character buffer for transmission
-#define DATASIZE 256
-char data[DATASIZE];
-//s_id as sentence id to have a unique number for each transmission
-uint16_t s_id = 0;
 //initialise our classes
 RTTY rtty(NTX2);
 GPS gps(GPSRX, GPSTX);
+SFE_BMP180 pressure;
+
+// ---- Global Variables ----
+
+// set camera cutoff voltage in 100ths of a volt
+#define CAMERA_CUTOFF_VOLTAGE 510
+#define CAMERA_CYCLES_B4_CUTOFF 10
+
+unsigned int CamCyclesBelowVoltage;
+boolean CameraOn;
+
+//Character buffer for transmission
+#define DATASIZE 256
+char data[DATASIZE];
+
+//s_id as sentence id to have a unique number for each transmission
+uint16_t s_id = 0;
+
+double BMP_Temp, BMP_Pressure;
 
 //*************************************************************************************
 //
@@ -38,15 +53,32 @@ GPS gps(GPSRX, GPSTX);
 
 void setup() {
   Serial.begin(9600);
-  //Initialise GPS
-  gps.start();
-  setPwmFrequency(NTX2, 1);
-  pinMode(ENABLE_RADIO, OUTPUT);
+  Serial.println("DOGE2 Startup sequence. . .");
   pinMode(CAMERA, OUTPUT);
   pinMode(VOLTAGE, INPUT);
+  setPwmFrequency(NTX2, 1);
+  pinMode(ENABLE_RADIO, OUTPUT);
   digitalWrite(ENABLE_RADIO, HIGH);
-  Serial.println(F("GPS initialised"));
+  Serial.println("Radio init complete");
+  Serial.println("BMP085 init start");
+  if (pressure.begin())
+    Serial.println("BMP085 init success");
+  else
+  {
+    Serial.println("BMP085 init fail\n\n");
+    while(1); // Pause forever.
+  }
+  //Initialise GPS
+  Serial.println("GPS init start.");
+  gps.start();
+  Serial.println(F("GPS init complete."));
   
+  // Turn camera on
+  digitalWrite(CAMERA, HIGH);
+  CameraOn = true;
+  CamCyclesBelowVoltage = 0;
+  Serial.println("Camera on.");
+  Serial.println("DOGE2 Startup complete. . .");
 }
 
 //*************************************************************************************
@@ -56,23 +88,39 @@ void setup() {
 //*************************************************************************************
 
 void loop() {
-  //Call gps.get_info and, along with the s_id and battery, put it altogether into the string called 'data'
+  
   int V=getVoltage();
-    
-  snprintf(data, DATASIZE, "$$DOGE2,%d,GPS=[%s],V=%d.%d", s_id, gps.get_info(), V/100, V%100);
-  //print this to the screen and the ram
-  //Serial.println(data);
-
+  
+  // check if the batteries are below the camera cutoff voltage
+  if (V < CAMERA_CUTOFF_VOLTAGE) ++CamCyclesBelowVoltage;
+  else CamCyclesBelowVoltage=0;
+  if (CamCyclesBelowVoltage > CAMERA_CYCLES_B4_CUTOFF) {
+    digitalWrite(CAMERA, LOW);
+    CameraOn = false;
+  }
+  
+  // get readings for transmission
+  BMPread();
+  int T = BMP_Temp*10.0;
+  int P = BMP_Pressure*10.0;
+  int Alt = pressure.altitude(BMP_Pressure,1011)*10;
+  char Cam = '0';
+  if (CameraOn) Cam = '1';
+  
+  // format data string to broadcast
+  snprintf(data, DATASIZE, "$$DOGE2,%d,GPS=[%s],V=%d.%d,T=%d.%d,P=%d.%d,Alt=%d.%d,Cam=%c",  s_id,
+                                                                      gps.get_info(),
+                                                                      V/100, V%100,
+                                                                      T/10, T%10,
+                                                                      P/10, P%10,
+                                                                      Alt/10, Alt%10,
+                                                                      Cam);
+  
+  // broadcast the string
   rtty.send(data);
-  //increment the id next time.
-  s_id++;
-  //delay(500);
+  s_id++;  //increment the id
   
   Serial.println(data);
-  
-  //digitalWrite(CAMERA, HIGH);
-  //delay(20000);
-  //digitalWrite(CAMERA, LOW);
 }
 
 //*************************************************************************************
@@ -150,17 +198,40 @@ void setPwmFrequency(int pin, int divisor) {
   
 }
 
-int getVoltage(){
+int getVoltage()
+{
   float fvoltage;
-  int voltage;
-  //Obtain RAW voltage data
-  voltage = analogRead(VOLTAGE);
+  int ivoltage;
+  
+  // Obtain RAW voltage data
+  ivoltage = analogRead(VOLTAGE);
+  
   // calculate actual battery
+  fvoltage = (ivoltage*10.0)/1024.0;
   
-  fvoltage = voltage/1024.0;
-  fvoltage*= 10.0;
+  // convert to 100ths of a volt
+  ivoltage = fvoltage*100;
   
-  voltage = fvoltage*100;
+  return (ivoltage);
+}
+
+void BMPread()
+{
+  char status;
+  double T,P;
+ 
+  // read temperature
+  status = pressure.startTemperature();
+  delay(status);
+  status = pressure.getTemperature(T);
   
-  return (voltage);
-} 
+  // read pressure
+  status = pressure.startPressure(3);
+  delay(status);
+  status = pressure.getPressure(P,T);
+ 
+  // set global variables so we can 'return' 2 values at once
+  BMP_Temp = T;
+  BMP_Pressure = P;
+}
+
