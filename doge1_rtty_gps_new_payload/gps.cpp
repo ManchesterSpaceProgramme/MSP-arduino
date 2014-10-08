@@ -56,6 +56,14 @@ void GPS::start() {
   delay(1000);
 }
 
+// Returns true if the board currently has a gps fix
+boolean GPS::hasFix()
+{
+  poll();
+  
+  return (tgps.has_fix() != 0);
+}
+
 //This is the function that gets called from the loop
 char *GPS::get_info() {
   static char info[BUFSIZE] = "";

@@ -51,33 +51,65 @@ double BMP_Temp, BMP_Pressure;
 //
 //*************************************************************************************
 
-void setup() {
-  Serial.begin(9600);
-  Serial.println("DOGE2 Startup sequence. . .");
+void setup()
+{
+  unsigned long GPSTimer;
+  
   pinMode(CAMERA, OUTPUT);
   pinMode(VOLTAGE, INPUT);
-  setPwmFrequency(NTX2, 1);
   pinMode(ENABLE_RADIO, OUTPUT);
-  digitalWrite(ENABLE_RADIO, HIGH);
-  Serial.println("Radio init complete");
+  
+  Serial.begin(9600);
+  Serial.println("DOGE2 Startup sequence. . .");
+  
   Serial.println("BMP085 init start");
   if (pressure.begin())
     Serial.println("BMP085 init success");
   else
   {
     Serial.println("BMP085 init fail\n\n");
-    while(1); // Pause forever.
+    
+    // start radio and broadcast error message for ever
+    setPwmFrequency(NTX2, 1);
+    digitalWrite(ENABLE_RADIO, HIGH);
+  
+    while(1) {
+      rtty.send("DOGE1 BMP085 failed to initialize. . .");
+    }
   }
-  //Initialise GPS
+  
+  // Initialise GPS and wait for lock
   Serial.println("GPS init start.");
   gps.start();
   Serial.println(F("GPS init complete."));
+  GPSTimer = millis();
+  while(!gps.hasFix())
+  {
+    Serial.print("Waiting for GPS lock; [");
+    Serial.print(gps.get_info());
+    Serial.println("]");  
+  }
+  GPSTimer = (millis() - GPSTimer) / 1000;
+  Serial.print("GPS Lock took : ");
+  if (GPSTimer > 60){
+    Serial.print(GPSTimer/60);
+    Serial.print(" mins and ");
+  }
+  Serial.print(GPSTimer%60);
+  Serial.println(" seconds");
+  //Serial.println("GPS location locked.");
   
   // Turn camera on
   digitalWrite(CAMERA, HIGH);
   CameraOn = true;
   CamCyclesBelowVoltage = 0;
   Serial.println("Camera on.");
+  
+  // Turn Radio on
+  setPwmFrequency(NTX2, 1);
+  digitalWrite(ENABLE_RADIO, HIGH);
+  Serial.println("Radio init complete");
+  
   Serial.println("DOGE2 Startup complete. . .");
 }
 
