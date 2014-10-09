@@ -60,7 +60,7 @@ void setup()
   pinMode(ENABLE_RADIO, OUTPUT);
   
   Serial.begin(9600);
-  Serial.println("DOGE2 Startup sequence. . .");
+  Serial.println("DOGE1 Startup sequence. . .");
   
   Serial.println("BMP085 init start");
   if (pressure.begin())
@@ -97,7 +97,6 @@ void setup()
   }
   Serial.print(GPSTimer%60);
   Serial.println(" seconds");
-  //Serial.println("GPS location locked.");
   
   // Turn camera on
   digitalWrite(CAMERA, HIGH);
@@ -108,9 +107,9 @@ void setup()
   // Turn Radio on
   setPwmFrequency(NTX2, 1);
   digitalWrite(ENABLE_RADIO, HIGH);
-  Serial.println("Radio init complete");
+  Serial.println("Radio on");
   
-  Serial.println("DOGE2 Startup complete. . .");
+  Serial.println("DOGE1 Startup complete. . .");
 }
 
 //*************************************************************************************
@@ -136,21 +135,22 @@ void loop() {
   int T = BMP_Temp*10.0;
   int P = BMP_Pressure*10.0;
   int Alt = pressure.altitude(BMP_Pressure,1011)*10;
-  char Cam = '0';
-  if (CameraOn) Cam = '1';
+  //char Cam = '0';
+  //if (CameraOn) Cam = '1';
   
   // format data string to broadcast
-  snprintf(data, DATASIZE, "$$DOGE2,%d,GPS=[%s],V=%d.%d,T=%d.%d,P=%d.%d,Alt=%d.%d,Cam=%c",  s_id,
+  snprintf(data, DATASIZE, "$$DOGE1,%d,%s,%d.%d,%d.%d,%d.%d,%d.%d",  s_id,
                                                                       gps.get_info(),
                                                                       V/100, V%100,
                                                                       T/10, T%10,
                                                                       P/10, P%10,
-                                                                      Alt/10, Alt%10,
-                                                                      Cam);
+                                                                      Alt/10, Alt%10);
   
   // broadcast the string
   rtty.send(data);
   s_id++;  //increment the id
+  //delay(5000);
+  
   
   Serial.println(data);
 }

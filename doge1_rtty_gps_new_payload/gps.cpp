@@ -115,13 +115,13 @@ char *GPS::get_info() {
   //Serial.print("satellites: "); Serial.println(tgps.sats(), DEC);
 
   //Whether the GPS has a fix or no
-  hasfix = tgps.has_fix();
-  sprintf(strFix, "%d", hasfix);
+  //hasfix = tgps.has_fix();
+  //sprintf(strFix, "%d", hasfix);
 
   //Serial.print("has fix: "); Serial.println(hasfix);
 
   //fix quality - can range from 0 - 3. 3 is the best
-  sprintf(strFixQuality, "%d", tgps.fix_quality());
+  //sprintf(strFixQuality, "%d", tgps.fix_quality());
   //Serial.print("fix quality: "); Serial.println(strFixQuality);
   //Serial.print("fix age: "); Serial.println(gps_fix_age, DEC);
   //Serial.println("------------");
@@ -135,8 +135,8 @@ char *GPS::get_info() {
   strncat(info, ",", 1);
   strncat(info, strAltitude, 20);    
   strncat(info, ",", 1);
-  strncat(info, strFixQuality, 3);
-  strncat(info, ",", 1);
+  //strncat(info, strFixQuality, 3);
+  //strncat(info, ",", 1);
   strncat(info, strSats, 3);
 
   println(info);
