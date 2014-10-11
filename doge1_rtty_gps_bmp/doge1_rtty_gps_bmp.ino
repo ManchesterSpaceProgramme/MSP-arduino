@@ -13,11 +13,11 @@
 #include <SFE_BMP180.h>
 #include <Wire.h>
 
-// You will need to create an SFE_BMP180 object, here called "pressure":
 
 SFE_BMP180 pressure;
 
-#define ALTITUDE 0.0 // Altitude of SparkFun's HQ in Boulder, CO. in meters
+#define ALTITUDE 0.0
+#define INITIAL_PRESSURE 0.0
 
 //Include our separate code for ease of reading
 #include "rtty.h"
@@ -46,10 +46,15 @@ void setup() {
   Serial.begin(9600);
   //Initialise GPS
   gps.start();
+  
+  //Initialise radio
   setPwmFrequency(NTX2, 1);
   pinMode(ENABLE_RADIO, OUTPUT);
   digitalWrite(ENABLE_RADIO, HIGH);
   Serial.println(F("GPS and Radio initialised"));  
+  
+  //Initialise BMP
+  
   if (pressure.begin())
     Serial.println("BMP180 init success");
   else
@@ -155,7 +160,7 @@ void setPwmFrequency(int pin, int divisor) {
 char *getBMP(){
    char status;
    double T,P,p0,a;
-   static char bmpReturn[13  ];
+   static char bmpReturn[13];
    char temp[4];
    char absPressure[4];
    char bmpAltitude[5];

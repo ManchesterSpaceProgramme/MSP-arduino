@@ -91,6 +91,12 @@ char *GPS::get_info() {
 
   //Serial.println();
   //Serial.print("time: "); Serial.println(strTime);
+  
+  //Check if we have a lock, if not then set lat/long to zero
+  if(tgps.sats() == 0){
+    gps_lat = 0.0;
+    gps_lon = 0.0;
+  }
 
   //uses the dtostrf function found in stdlib.h to convert floats to strings
   //Latitude

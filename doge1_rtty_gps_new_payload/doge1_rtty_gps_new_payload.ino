@@ -43,7 +43,7 @@ char data[DATASIZE];
 //s_id as sentence id to have a unique number for each transmission
 uint16_t s_id = 0;
 
-double BMP_Temp, BMP_Pressure;
+double BMP_Temp, BMP_Pressure, BMP_Initial_Pressure;
 
 //*************************************************************************************
 //
@@ -63,10 +63,14 @@ void setup()
   Serial.println("DOGE1 Startup sequence. . .");
   
   Serial.println("BMP085 init start");
-  if (pressure.begin())
+  if (pressure.begin()) {
+    //Read from BMP to get initial pressure readings
+    BMPread();
+    BMP_Initial_Pressure = BMP_Pressure;
     Serial.println("BMP085 init success");
-  else
-  {
+    Serial.print("BMP085 init pressure : "); 
+    Serial.println(BMP_Initial_Pressure);
+  } else {
     Serial.println("BMP085 init fail\n\n");
     
     // start radio and broadcast error message for ever
@@ -134,7 +138,7 @@ void loop() {
   BMPread();
   int T = BMP_Temp*10.0;
   int P = BMP_Pressure*10.0;
-  int Alt = pressure.altitude(BMP_Pressure,1011)*10;
+  int Alt = pressure.altitude(BMP_Pressure,BMP_Initial_Pressure)*10;
   //char Cam = '0';
   //if (CameraOn) Cam = '1';
   
@@ -142,14 +146,14 @@ void loop() {
   snprintf(data, DATASIZE, "$$DOGE1,%d,%s,%d.%d,%d.%d,%d.%d,%d.%d",  s_id,
                                                                       gps.get_info(),
                                                                       V/100, V%100,
-                                                                      T/10, T%10,
+                                                                      T/10, abs(T%10),
                                                                       P/10, P%10,
-                                                                      Alt/10, Alt%10);
+                                                                      Alt/10, abs(Alt%10));
   
   // broadcast the string
   rtty.send(data);
   s_id++;  //increment the id
-  //delay(5000);
+  delay(1000);
   
   
   Serial.println(data);
